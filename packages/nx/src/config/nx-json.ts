@@ -1,9 +1,9 @@
-import { dirname, join } from 'path';
 import { existsSync } from 'fs';
+import { dirname, join } from 'path';
 
 import { readJsonFile } from '../utils/fileutils';
-import { workspaceRoot } from '../utils/workspace-root';
 import { PackageManager } from '../utils/package-manager';
+import { workspaceRoot } from '../utils/workspace-root';
 import {
   InputDefinition,
   TargetConfiguration,
@@ -63,7 +63,8 @@ interface NxInstallationConfiguration {
  * **ALPHA**
  */
 interface NxReleaseVersionConfiguration {
-  generator: string;
+  specifierSource?: 'prompt' | 'conventional-commits';
+  generator?: string;
   generatorOptions?: Record<string, unknown>;
 }
 

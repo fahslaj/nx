@@ -166,6 +166,13 @@ To fix this you will either need to add a package.json file at that location, or
         );
     }
 
+    if (!options.specifier) {
+      log(
+        `🚫 Skipping versioning "${projectPackageJson.name}" as no changes were detected.`
+      );
+      continue;
+    }
+
     // Resolve any local package dependencies for this project (before applying the new version)
     const localPackageDependencies = resolveLocalPackageDependencies(
       tree,

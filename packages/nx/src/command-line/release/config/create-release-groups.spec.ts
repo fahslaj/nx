@@ -27,6 +27,16 @@ describe('create-release-groups', () => {
             },
           } as any,
         },
+        'lib-c': {
+          name: 'lib-c',
+          type: 'lib',
+          data: {
+            root: 'libs/lib-c',
+            targets: {
+              'nx-release-publish': {},
+            },
+          } as any,
+        },
       },
       dependencies: {},
     };
@@ -44,10 +54,12 @@ describe('create-release-groups', () => {
               "projects": [
                 "lib-a",
                 "lib-b",
+                "lib-c",
               ],
               "version": {
                 "generator": "@nx/js:release-version",
                 "generatorOptions": {},
+                "specifierSource": "prompt",
               },
             },
           ],
@@ -60,7 +72,7 @@ describe('create-release-groups', () => {
     it('should ignore any projects not matched to user specified groups', async () => {
       const res = await createReleaseGroups(projectGraph, {
         'group-1': {
-          projects: ['lib-a'], // intentionally no lib-b, so it should be ignored
+          projects: ['lib-a', 'lib-c'], // intentionally no lib-b, so it should be ignored
         },
       });
       expect(res).toMatchInlineSnapshot(`
@@ -71,10 +83,12 @@ describe('create-release-groups', () => {
               "name": "group-1",
               "projects": [
                 "lib-a",
+                "lib-c",
               ],
               "version": {
                 "generator": "@nx/js:release-version",
                 "generatorOptions": {},
+                "specifierSource": "prompt",
               },
             },
           ],
@@ -99,6 +113,18 @@ describe('create-release-groups', () => {
             generator: '@custom/generator-alternative',
           },
         },
+        'group-3': {
+          projects: ['lib-c'],
+          version: {
+            specifierSource: 'conventional-commits',
+            generatorOptions: {
+              currentVersionResolver: 'git-tag',
+              currentVersionResolverMetadata: {
+                tagVersionPrefix: 'v',
+              },
+            },
+          },
+        },
       });
       expect(res).toMatchInlineSnapshot(`
         {
@@ -114,6 +140,7 @@ describe('create-release-groups', () => {
                 "generatorOptions": {
                   "optionsOverride": "something",
                 },
+                "specifierSource": "prompt",
               },
             },
             {
@@ -124,6 +151,23 @@ describe('create-release-groups', () => {
               "version": {
                 "generator": "@custom/generator-alternative",
                 "generatorOptions": {},
+                "specifierSource": "prompt",
+              },
+            },
+            {
+              "name": "group-3",
+              "projects": [
+                "lib-c",
+              ],
+              "version": {
+                "generator": "@nx/js:release-version",
+                "generatorOptions": {
+                  "currentVersionResolver": "git-tag",
+                  "currentVersionResolverMetadata": {
+                    "tagVersionPrefix": "v",
+                  },
+                },
+                "specifierSource": "conventional-commits",
               },
             },
           ],

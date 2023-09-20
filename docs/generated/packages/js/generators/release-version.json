@@ -42,7 +42,7 @@
         "default": {}
       }
     },
-    "required": ["projects", "projectGraph", "specifier"],
+    "required": ["projects", "projectGraph"],
     "presets": []
   },
   "description": "DO NOT INVOKE DIRECTLY WITH `nx generate`. Use `nx release version` instead.",

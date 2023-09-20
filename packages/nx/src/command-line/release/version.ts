@@ -2,7 +2,7 @@ import * as chalk from 'chalk';
 import * as enquirer from 'enquirer';
 import { readFileSync } from 'node:fs';
 import { relative } from 'node:path';
-import { RELEASE_TYPES, valid } from 'semver';
+import { RELEASE_TYPES, prerelease, valid } from 'semver';
 import { Generator } from '../../config/misc-interfaces';
 import { readNxJson } from '../../config/nx-json';
 import {
@@ -11,6 +11,7 @@ import {
 } from '../../config/project-graph';
 import {
   NxJsonConfiguration,
+  createProjectFileMapUsingProjectGraph,
   joinPathFragments,
   logger,
   output,
@@ -33,11 +34,28 @@ import {
   createReleaseGroups,
   handleCreateReleaseGroupsError,
 } from './config/create-release-groups';
+import { getGitDiff, getLastGitTag, parseCommits } from './utils/git';
 import { printDiff } from './utils/print-changes';
-import { isRelativeVersionKeyword } from './utils/semver';
+import {
+  ConventionalCommitsConfig,
+  determineSemverChange,
+  isRelativeVersionKeyword,
+} from './utils/semver';
 
 // Reexport for use in plugin release-version generator implementations
 export { deriveNewSemverVersion } from './utils/semver';
+
+// TODO: Extract config to nx.json configuration when adding changelog customization
+const CONVENTIONAL_COMMITS_CONFIG: ConventionalCommitsConfig = {
+  types: {
+    feat: {
+      semver: 'minor',
+    },
+    fix: {
+      semver: 'patch',
+    },
+  },
+};
 
 export interface ReleaseVersionGeneratorSchema {
   // The projects being versioned in the current execution
@@ -157,14 +175,23 @@ export async function versionHandler(args: VersionOptions): Promise<void> {
         configGeneratorOptions: releaseGroup.version.generatorOptions,
       });
 
+      const releaseGroupProjectNames = Array.from(
+        releaseGroupToFilteredProjects.get(releaseGroup)
+      );
+
       const semverSpecifier = await resolveSemverSpecifier(
         args.specifier,
-        `What kind of change is this for the ${
-          releaseGroupToFilteredProjects.get(releaseGroup).size
-        } matched project(s) within release group "${releaseGroupName}"?`,
-        `What is the exact version for the ${
-          releaseGroupToFilteredProjects.get(releaseGroup).size
-        } matched project(s) within release group "${releaseGroupName}"?`
+        releaseGroup,
+        projectGraph,
+        releaseGroupProjectNames,
+        {
+          selectionMessage: `What kind of change is this for the ${
+            releaseGroupToFilteredProjects.get(releaseGroup).size
+          } matched project(s) within release group "${releaseGroupName}"?`,
+          customVersionMessage: `What is the exact version for the ${
+            releaseGroupToFilteredProjects.get(releaseGroup).size
+          } matched project(s) within release group "${releaseGroupName}"?`,
+        }
       );
 
       await runVersionOnProjects(
@@ -173,7 +200,7 @@ export async function versionHandler(args: VersionOptions): Promise<void> {
         args,
         tree,
         generatorData,
-        Array.from(releaseGroupToFilteredProjects.get(releaseGroup)),
+        releaseGroupProjectNames,
         semverSpecifier
       );
     }
@@ -215,12 +242,19 @@ export async function versionHandler(args: VersionOptions): Promise<void> {
 
     const semverSpecifier = await resolveSemverSpecifier(
       args.specifier,
-      releaseGroupName === CATCH_ALL_RELEASE_GROUP
-        ? `What kind of change is this for all packages?`
-        : `What kind of change is this for release group "${releaseGroupName}"?`,
-      releaseGroupName === CATCH_ALL_RELEASE_GROUP
-        ? `What is the exact version for all packages?`
-        : `What is the exact version for release group "${releaseGroupName}"?`
+      releaseGroup,
+      projectGraph,
+      releaseGroup.projects,
+      {
+        selectionMessage:
+          releaseGroupName === CATCH_ALL_RELEASE_GROUP
+            ? `What kind of change is this for all packages?`
+            : `What kind of change is this for release group "${releaseGroupName}"?`,
+        customVersionMessage:
+          releaseGroupName === CATCH_ALL_RELEASE_GROUP
+            ? `What is the exact version for all packages?`
+            : `What is the exact version for release group "${releaseGroupName}"?`,
+      }
     );
 
     await runVersionOnProjects(
@@ -246,17 +280,11 @@ async function runVersionOnProjects(
   tree: Tree,
   generatorData: GeneratorData,
   projectNames: string[],
-  newVersionSpecifier: string
+  newVersionSpecifier?: string
 ) {
-  // Should be impossible state
-  if (!newVersionSpecifier) {
-    output.error({
-      title: `No version or semver keyword could be determined`,
-    });
-    process.exit(1);
-  }
   // Specifier could be user provided so we need to validate it
   if (
+    newVersionSpecifier &&
     !valid(newVersionSpecifier) &&
     !isRelativeVersionKeyword(newVersionSpecifier)
   ) {
@@ -269,7 +297,7 @@ async function runVersionOnProjects(
   const generatorOptions: ReleaseVersionGeneratorSchema = {
     projects: projectNames.map((p) => projectGraph.nodes[p]),
     projectGraph,
-    specifier: newVersionSpecifier,
+    specifier: newVersionSpecifier ?? '',
     preid: args.preid,
     ...generatorData.configGeneratorOptions,
   };
@@ -334,47 +362,114 @@ function printChanges(tree: Tree, isDryRun: boolean) {
 
 async function resolveSemverSpecifier(
   cliArgSpecifier: string,
+  releaseGroup: ReleaseGroup,
+  projectGraph: ProjectGraph,
+  projectNames: string[],
+  promptOptions: {
+    selectionMessage: string;
+    customVersionMessage: string;
+  }
+): Promise<string> {
+  if (cliArgSpecifier) {
+    return cliArgSpecifier;
+  }
+
+  const specifierSource = releaseGroup.version.specifierSource;
+
+  switch (specifierSource) {
+    case 'conventional-commits':
+      const generatorOptions: { tagVersionPrefix?: string } | undefined =
+        releaseGroup.version.generatorOptions.currentVersionResolverMetadata;
+      const tagVersionPrefix = generatorOptions?.tagVersionPrefix || 'v';
+
+      const currentVersionTag = await getLastGitTag(`${tagVersionPrefix}*.*.*`);
+      const currentVersion = currentVersionTag.replace(tagVersionPrefix, '');
+
+      // Always assume that if the current version is a prerelease, then the next version should be a prerelease.
+      // Users must manually graduate from a prerelease to a release by providing an explicit specifier.
+      const semverSpecifier = prerelease(currentVersion)
+        ? 'prerelease'
+        : await resolveSemverSpecifierFromConventionalCommits(
+            currentVersionTag,
+            projectGraph,
+            projectNames
+          );
+
+      return semverSpecifier;
+    case 'prompt':
+      return await resolveSemverSpecifierFromPrompt(
+        promptOptions.selectionMessage,
+        promptOptions.customVersionMessage
+      );
+    default:
+      throw new Error(
+        `Invalid specifierSource "${specifierSource}" provided. Must be one of "prompt" or "conventional-commits"`
+      );
+  }
+}
+
+async function resolveSemverSpecifierFromConventionalCommits(
+  from: string,
+  projectGraph: ProjectGraph,
+  projectNames: string[]
+) {
+  const commits = await getGitDiff(from);
+  const parsedCommits = parseCommits(commits);
+  const projectFileMap = await createProjectFileMapUsingProjectGraph(
+    projectGraph
+  );
+  const filesInReleaseGroup = new Set<string>(
+    projectNames.reduce(
+      (files, p) => [...files, ...projectFileMap[p].map((f) => f.file)],
+      [] as string[]
+    )
+  );
+
+  const relevantCommits = parsedCommits.filter((c) =>
+    c.affectedFiles.some((f) => filesInReleaseGroup.has(f))
+  );
+
+  // TODO: support prereleases
+  return determineSemverChange(relevantCommits, CONVENTIONAL_COMMITS_CONFIG);
+}
+
+async function resolveSemverSpecifierFromPrompt(
   selectionMessage: string,
   customVersionMessage: string
 ): Promise<string> {
   try {
-    let newVersionSpecifier = cliArgSpecifier;
-    // If the user didn't provide a new version specifier directly on the CLI, prompt for one
-    if (!newVersionSpecifier) {
+    const reply = await enquirer.prompt<{ specifier: string }>([
+      {
+        name: 'specifier',
+        message: selectionMessage,
+        type: 'select',
+        choices: [
+          ...RELEASE_TYPES.map((t) => ({ name: t, message: t })),
+          {
+            name: 'custom',
+            message: 'Custom exact version',
+          },
+        ],
+      },
+    ]);
+    if (reply.specifier !== 'custom') {
+      return reply.specifier;
+    } else {
       const reply = await enquirer.prompt<{ specifier: string }>([
         {
           name: 'specifier',
-          message: selectionMessage,
-          type: 'select',
-          choices: [
-            ...RELEASE_TYPES.map((t) => ({ name: t, message: t })),
-            {
-              name: 'custom',
-              message: 'Custom exact version',
-            },
-          ],
+          message: customVersionMessage,
+          type: 'input',
+          validate: (input) => {
+            if (valid(input)) {
+              return true;
+            }
+            return 'Please enter a valid semver version';
+          },
         },
       ]);
-      if (reply.specifier !== 'custom') {
-        newVersionSpecifier = reply.specifier;
-      } else {
-        const reply = await enquirer.prompt<{ specifier: string }>([
-          {
-            name: 'specifier',
-            message: customVersionMessage,
-            type: 'input',
-            validate: (input) => {
-              if (valid(input)) {
-                return true;
-              }
-              return 'Please enter a valid semver version';
-            },
-          },
-        ]);
-        newVersionSpecifier = reply.specifier;
-      }
+      return reply.specifier;
     }
-    return newVersionSpecifier;
   } catch {
     // We need to catch the error from enquirer prompt, otherwise yargs will print its help
     process.exit(1);

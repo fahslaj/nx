@@ -41,5 +41,5 @@
       "default": {}
     }
   },
-  "required": ["projects", "projectGraph", "specifier"]
+  "required": ["projects", "projectGraph"]
 }
