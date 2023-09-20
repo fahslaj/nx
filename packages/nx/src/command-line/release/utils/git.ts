@@ -30,11 +30,22 @@ export interface GitCommit extends RawGitCommit {
   isBreaking: boolean;
 }
 
-export async function getLastGitTag() {
-  const r = await execCommand('git', ['describe', '--tags', '--abbrev=0'])
-    .then((r) => r.split('\n').filter(Boolean))
-    .catch(() => []);
-  return r.at(-1);
+export async function getLastGitTag(matchingPattern: string) {
+  const matchingTags = await execCommand('git', [
+    'tag',
+    '-l',
+    matchingPattern,
+    '--sort',
+    '-v:refname',
+  ]).then((r) =>
+    r
+      .trim()
+      .split('\n')
+      .map((t) => t.trim())
+      .filter(Boolean)
+  );
+
+  return matchingTags.length ? matchingTags[0] : null;
 }
 
 export async function getGitDiff(

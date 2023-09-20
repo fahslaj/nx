@@ -9,6 +9,7 @@ import {
 } from '@nx/devkit';
 import * as chalk from 'chalk';
 import { exec } from 'child_process';
+import { getLastGitTag } from 'nx/src/command-line/release/utils/git';
 import { deriveNewSemverVersion } from 'nx/src/command-line/release/version';
 import { interpolate } from 'nx/src/tasks-runner/utils';
 import * as ora from 'ora';
@@ -39,6 +40,10 @@ export async function releaseVersionGenerator(
   }
 
   let currentVersion: string;
+
+  // only used for options.currentVersionResolver === 'git-tag', but
+  // must be declared here in order to reuse it for additional projects
+  let lastMatchingGitTag: string;
 
   for (const project of projects) {
     const projectName = project.name;
@@ -79,7 +84,10 @@ To fix this you will either need to add a package.json file at that location, or
     switch (options.currentVersionResolver) {
       case 'registry': {
         const metadata = options.currentVersionResolverMetadata;
-        const registry = metadata?.registry ?? 'https://registry.npmjs.org';
+        const registry =
+          metadata?.registry ??
+          (await getNpmRegistry()) ??
+          'https://registry.npmjs.org';
         const tag = metadata?.tag ?? 'latest';
 
         // If the currentVersionResolver is set to registry, we only want to make the request once for the whole batch of projects
@@ -127,6 +135,31 @@ To fix this you will either need to add a package.json file at that location, or
           `📄 Resolved the current version as ${currentVersion} from ${packageJsonPath}`
         );
         break;
+      case 'git-tag': {
+        if (!currentVersion) {
+          const tagVersionPrefix =
+            (options.currentVersionResolverMetadata
+              ?.tagVersionPrefix as string) ?? 'v';
+          const matchingPattern = `${tagVersionPrefix}*.*.*`;
+          lastMatchingGitTag = await getLastGitTag(matchingPattern);
+
+          if (!lastMatchingGitTag) {
+            throw new Error(
+              `No git tags matching pattern "${matchingPattern}" were found.`
+            );
+          }
+
+          currentVersion = lastMatchingGitTag.replace(tagVersionPrefix, '');
+          log(
+            `📄 Resolved the current version as ${currentVersion} from git tag "${lastMatchingGitTag}".`
+          );
+        } else {
+          log(
+            `📄 Using the current version ${currentVersion} already resolved from git tag "${lastMatchingGitTag}".`
+          );
+        }
+        break;
+      }
       default:
         throw new Error(
           `Invalid value for options.currentVersionResolver: ${options.currentVersionResolver}`
@@ -216,4 +249,19 @@ function getColor(projectName: string) {
   const colorIndex = code % colors.length;
 
   return colors[colorIndex];
+}
+
+async function getNpmRegistry() {
+  // Must be non-blocking async to allow spinner to render
+  return await new Promise<string>((resolve, reject) => {
+    exec('npm config get registry', (error, stdout, stderr) => {
+      if (error) {
+        return reject(error);
+      }
+      if (stderr) {
+        return reject(stderr);
+      }
+      return resolve(stdout.trim());
+    });
+  });
 }

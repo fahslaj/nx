@@ -33,7 +33,7 @@
       "type": "string",
       "default": "disk",
       "description": "Which approach to use to determine the current version of the project.",
-      "enum": ["registry", "disk"]
+      "enum": ["registry", "disk", "git-tag"]
     },
     "currentVersionResolverMetadata": {
       "type": "object",

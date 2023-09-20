@@ -46,7 +46,7 @@ export interface ReleaseVersionGeneratorSchema {
   specifier: string;
   preid?: string;
   packageRoot?: string;
-  currentVersionResolver?: 'registry' | 'disk';
+  currentVersionResolver?: 'registry' | 'disk' | 'git-tag';
   currentVersionResolverMetadata?: Record<string, unknown>;
 }
 

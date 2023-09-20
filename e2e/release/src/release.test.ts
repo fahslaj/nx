@@ -9,6 +9,7 @@ import {
   runCLI,
   runCommandAsync,
   runCommandUntil,
+  tmpProjPath,
   uniq,
   updateJson,
 } from '@nx/e2e/utils';
@@ -546,5 +547,76 @@ describe('nx release', () => {
 
     // port and process cleanup
     await killProcessAndPorts(process.pid, verdaccioPort);
+
+    // Add custom nx release config to control version resolution
+    updateJson<NxJsonConfiguration>('nx.json', (nxJson) => {
+      nxJson.release = {
+        groups: {
+          default: {
+            // @proj/source will be added as a project by the verdaccio setup, but we aren't versioning or publishing it, so we exclude it here
+            projects: ['*', '!@proj/source'],
+            version: {
+              generator: '@nx/js:release-version',
+              generatorOptions: {
+                // Resolve the latest version from the git tag
+                currentVersionResolver: 'git-tag',
+                currentVersionResolverMetadata: {
+                  tagVersionPrefix: 'xx',
+                },
+              },
+            },
+          },
+        },
+      };
+      return nxJson;
+    });
+
+    // Add a git tag to the repo
+    execSync(`git tag -a xx1100.0.0 -m xx1100.0.0`, {
+      cwd: tmpProjPath(),
+    });
+
+    const versionOutput3 = runCLI(`release version minor`);
+    expect(
+      versionOutput3.match(/Running release version for project: my-pkg-\d*/g)
+        .length
+    ).toEqual(3);
+    expect(
+      versionOutput3.match(
+        /Reading data for package "@proj\/my-pkg-\d*" from my-pkg-\d*\/package.json/g
+      ).length
+    ).toEqual(3);
+
+    // It should resolve the current version from the registry once...
+    expect(
+      versionOutput3.match(
+        new RegExp(
+          `Resolved the current version as 1100.0.0 from git tag "xx1100.0.0"`,
+          'g'
+        )
+      ).length
+    ).toEqual(1);
+    // ...and then reuse it twice
+    expect(
+      versionOutput3.match(
+        new RegExp(
+          `Using the current version 1100.0.0 already resolved from git tag "xx1100.0.0"`,
+          'g'
+        )
+      ).length
+    ).toEqual(2);
+
+    expect(
+      versionOutput3.match(
+        /New version 1100.1.0 written to my-pkg-\d*\/package.json/g
+      ).length
+    ).toEqual(3);
+
+    // Only one dependency relationship exists, so this log should only match once
+    expect(
+      versionOutput3.match(
+        /Applying new version 1100.1.0 to 1 package which depends on my-pkg-\d*/g
+      ).length
+    ).toEqual(1);
   }, 500000);
 });

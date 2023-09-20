@@ -37,6 +37,7 @@ export async function changelogHandler(args: ChangelogOptions): Promise<void> {
   const releaseVersion = args.version.startsWith(tagVersionPrefix)
     ? args.version
     : `${tagVersionPrefix}${args.version}`;
+  const tagMatchingPattern = `${tagVersionPrefix}*.*.*`;
 
   // We are either creating/previewing a changelog file, a Github release, or both
   let logTitle = args.dryRun ? 'Previewing a ' : 'Generating a ';
@@ -57,7 +58,7 @@ export async function changelogHandler(args: ChangelogOptions): Promise<void> {
     title: logTitle,
   });
 
-  const from = args.from || (await getLastGitTag());
+  const from = args.from || (await getLastGitTag(tagMatchingPattern));
   if (!from) {
     output.error({
       title: `Unable to determine the previous git tag, please provide an explicit git reference using --from`,
