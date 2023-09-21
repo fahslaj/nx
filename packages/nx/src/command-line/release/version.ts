@@ -378,9 +378,19 @@ async function resolveSemverSpecifier(
 
   switch (specifierSource) {
     case 'conventional-commits':
-      const generatorOptions: { tagVersionPrefix?: string } | undefined =
-        releaseGroup.version.generatorOptions.currentVersionResolverMetadata;
-      const tagVersionPrefix = generatorOptions?.tagVersionPrefix || 'v';
+      const generatorOptions = releaseGroup.version.generatorOptions;
+
+      if (generatorOptions?.currentVersionResolver !== 'git-tag') {
+        throw new Error(
+          `Invalid currentVersionResolver "${generatorOptions?.currentVersionResolver}" provided. Must be "git-tag" when "specifierSource" is "conventional-commits"`
+        );
+      }
+
+      const currentVersionResolverMetadata:
+        | { tagVersionPrefix?: string }
+        | undefined = generatorOptions?.currentVersionResolverMetadata;
+      const tagVersionPrefix =
+        currentVersionResolverMetadata?.tagVersionPrefix ?? 'v';
 
       const currentVersionTag = await getLastGitTag(`${tagVersionPrefix}*.*.*`);
       const currentVersion = currentVersionTag.replace(tagVersionPrefix, '');
