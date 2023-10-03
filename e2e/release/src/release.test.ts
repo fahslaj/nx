@@ -14,8 +14,6 @@ import {
   updateJson,
 } from '@nx/e2e/utils';
 import { execSync } from 'child_process';
-import { writeFileSync } from 'fs';
-import { join } from 'path';
 
 expect.addSnapshotSerializer({
   serialize(str: string) {
@@ -589,7 +587,7 @@ describe('nx release', () => {
       ).length
     ).toEqual(3);
 
-    // It should resolve the current version from the registry once...
+    // It should resolve the current version from the git tag once...
     expect(
       versionOutput3.match(
         new RegExp(
@@ -621,8 +619,8 @@ describe('nx release', () => {
       ).length
     ).toEqual(1);
 
-    writeFileSync(
-      join(tmpProjPath(), `${pkg1}/my-file.txt`),
+    createFile(
+      `${pkg1}/my-file.txt`,
       'update for conventional-commits testing'
     );
 
@@ -662,7 +660,7 @@ describe('nx release', () => {
       ).length
     ).toEqual(3);
 
-    // It should resolve the current version from the registry once...
+    // It should resolve the current version from the git tag once...
     expect(
       versionOutput4.match(
         new RegExp(
