@@ -1,5 +1,5 @@
 import { GitCommit } from './git';
-import { parseChangelogMarkdown, generateMarkdown } from './markdown';
+import { generateMarkdown, parseChangelogMarkdown } from './markdown';
 
 describe('markdown utils', () => {
   describe('generateMarkdown()', () => {
@@ -29,6 +29,7 @@ describe('markdown utils', () => {
             },
           ],
           isBreaking: false,
+          affectedFiles: [],
         },
         {
           message: 'feat(pkg-b): and another new capability',
@@ -54,6 +55,7 @@ describe('markdown utils', () => {
             },
           ],
           isBreaking: false,
+          affectedFiles: [],
         },
         {
           message: 'feat(pkg-a): new hotness',
@@ -79,6 +81,7 @@ describe('markdown utils', () => {
             },
           ],
           isBreaking: false,
+          affectedFiles: [],
         },
         {
           message: 'feat(pkg-b): brand new thing',
@@ -104,6 +107,7 @@ describe('markdown utils', () => {
             },
           ],
           isBreaking: false,
+          affectedFiles: [],
         },
         {
           message: 'fix(pkg-a): squashing bugs',
@@ -129,6 +133,7 @@ describe('markdown utils', () => {
             },
           ],
           isBreaking: false,
+          affectedFiles: [],
         },
       ];
 
