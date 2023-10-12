@@ -8,7 +8,6 @@ export interface ReleaseGroup {
   name: string;
   projects: string[];
   version: {
-    specifierSource: 'prompt' | 'conventional-commits';
     generator: string;
     generatorOptions: Record<string, unknown>;
   };
@@ -37,7 +36,6 @@ export async function createReleaseGroups(
   error: null | CreateReleaseGroupsError;
   releaseGroups: ReleaseGroup[];
 }> {
-  const DEFAULT_SPECIFIER_SOURCE = 'prompt';
   const DEFAULT_VERSION_GENERATOR = '@nx/js:release-version';
   const DEFAULT_VERSION_GENERATOR_OPTIONS = {};
 
@@ -70,7 +68,6 @@ export async function createReleaseGroups(
           name: CATCH_ALL_RELEASE_GROUP,
           projects: allProjects,
           version: {
-            specifierSource: DEFAULT_SPECIFIER_SOURCE,
             generator: DEFAULT_VERSION_GENERATOR,
             generatorOptions: DEFAULT_VERSION_GENERATOR_OPTIONS,
           },
@@ -144,9 +141,6 @@ export async function createReleaseGroups(
       projects: matchingProjects,
       version: userSpecifiedGroup.version
         ? {
-            specifierSource:
-              userSpecifiedGroup.version.specifierSource ||
-              DEFAULT_SPECIFIER_SOURCE,
             generator:
               userSpecifiedGroup.version.generator || DEFAULT_VERSION_GENERATOR,
             generatorOptions:
@@ -154,7 +148,6 @@ export async function createReleaseGroups(
               DEFAULT_VERSION_GENERATOR_OPTIONS,
           }
         : {
-            specifierSource: DEFAULT_SPECIFIER_SOURCE,
             generator: DEFAULT_VERSION_GENERATOR,
             generatorOptions: DEFAULT_VERSION_GENERATOR_OPTIONS,
           },

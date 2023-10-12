@@ -10,6 +10,12 @@ export function isRelativeVersionKeyword(val: string): val is ReleaseType {
   return RELEASE_TYPES.includes(val as ReleaseType);
 }
 
+export function isValidSemverSpecifier(specifier: string): boolean {
+  return (
+    specifier && !!(valid(specifier) || isRelativeVersionKeyword(specifier))
+  );
+}
+
 export interface ConventionalCommitsConfig {
   types: {
     [type: string]: {

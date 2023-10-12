@@ -63,7 +63,6 @@ interface NxInstallationConfiguration {
  * **ALPHA**
  */
 interface NxReleaseVersionConfiguration {
-  specifierSource?: 'prompt' | 'conventional-commits';
   generator?: string;
   generatorOptions?: Record<string, unknown>;
 }

@@ -632,10 +632,9 @@ describe('nx release', () => {
             // @proj/source will be added as a project by the verdaccio setup, but we aren't versioning or publishing it, so we exclude it here
             projects: ['*', '!@proj/source'],
             version: {
-              specifierSource: 'conventional-commits',
               generator: '@nx/js:release-version',
               generatorOptions: {
-                // Resolve the latest version from the git tag
+                specifierSource: 'conventional-commits',
                 currentVersionResolver: 'git-tag',
                 currentVersionResolverMetadata: {
                   tagVersionPrefix: 'xx',
