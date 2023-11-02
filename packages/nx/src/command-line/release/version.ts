@@ -47,6 +47,12 @@ export interface ReleaseVersionGeneratorSchema {
   packageRoot?: string;
   currentVersionResolver?: 'registry' | 'disk' | 'git-tag';
   currentVersionResolverMetadata?: Record<string, unknown>;
+  dryRun?: boolean;
+  gitCommit?: boolean;
+  gitCommitAmend?: boolean;
+  gitCommitMessage?: string;
+  gitCommitArgs?: string[];
+  gitTagArgs?: string[];
 }
 
 export async function versionHandler(args: VersionOptions): Promise<void> {
@@ -104,6 +110,10 @@ export async function versionHandler(args: VersionOptions): Promise<void> {
         releaseGroupToFilteredProjects.get(releaseGroup)
       );
 
+      const shouldCommit =
+        args.commit &&
+        releaseGroups.indexOf(releaseGroup) === releaseGroups.length - 1;
+
       await runVersionOnProjects(
         projectGraph,
         nxJson,
@@ -111,7 +121,8 @@ export async function versionHandler(args: VersionOptions): Promise<void> {
         tree,
         generatorData,
         releaseGroupProjectNames,
-        releaseGroup
+        releaseGroup,
+        shouldCommit
       );
     }
 
@@ -135,6 +146,10 @@ export async function versionHandler(args: VersionOptions): Promise<void> {
       configGeneratorOptions: releaseGroup.version.generatorOptions,
     });
 
+    const shouldCommit =
+      args.commit &&
+      releaseGroups.indexOf(releaseGroup) === releaseGroups.length - 1;
+
     await runVersionOnProjects(
       projectGraph,
       nxJson,
@@ -142,7 +157,8 @@ export async function versionHandler(args: VersionOptions): Promise<void> {
       tree,
       generatorData,
       releaseGroup.projects,
-      releaseGroup
+      releaseGroup,
+      shouldCommit
     );
   }
 
@@ -158,7 +174,8 @@ async function runVersionOnProjects(
   tree: Tree,
   generatorData: GeneratorData,
   projectNames: string[],
-  releaseGroup: ReleaseGroupWithName
+  releaseGroup: ReleaseGroupWithName,
+  commit: boolean
 ) {
   const generatorOptions: ReleaseVersionGeneratorSchema = {
     projects: projectNames.map((p) => projectGraph.nodes[p]),
@@ -167,6 +184,8 @@ async function runVersionOnProjects(
     // Always ensure a string to avoid generator schema validation errors
     specifier: args.specifier ?? '',
     preid: args.preid,
+    dryRun: args.dryRun,
+    gitCommit: commit,
     ...generatorData.configGeneratorOptions,
   };
 

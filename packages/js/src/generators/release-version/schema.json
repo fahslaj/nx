@@ -49,6 +49,11 @@
       "type": "object",
       "description": "Additional metadata to pass to the current version resolver.",
       "default": {}
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Whether to run the command without actually modifying the file system or performing git operations.",
+      "default": false
     }
   },
   "required": ["projects", "projectGraph", "releaseGroup"]

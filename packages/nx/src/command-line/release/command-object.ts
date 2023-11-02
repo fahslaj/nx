@@ -18,6 +18,7 @@ export interface NxReleaseArgs {
 export type VersionOptions = NxReleaseArgs & {
   specifier?: string;
   preid?: string;
+  commit?: boolean;
 };
 
 export type ChangelogOptions = NxReleaseArgs & {
@@ -27,6 +28,7 @@ export type ChangelogOptions = NxReleaseArgs & {
   interactive?: string;
   gitRemote?: string;
   tagVersionPrefix?: string;
+  commit?: boolean;
 };
 
 export type PublishOptions = NxReleaseArgs &
@@ -115,6 +117,12 @@ const versionCommand: CommandModule<NxReleaseArgs, VersionOptions> = {
         describe:
           'The optional prerelease identifier to apply to the version, in the case that specifier has been set to prerelease.',
         default: '',
+      })
+      .option('commit', {
+        type: 'boolean',
+        describe:
+          'Commit the changes to the local git repository after versioning',
+        default: false,
       }),
   handler: (args) => import('./version').then((m) => m.versionHandler(args)),
 };
@@ -160,6 +168,12 @@ const changelogCommand: CommandModule<NxReleaseArgs, ChangelogOptions> = {
         description:
           'Prefix to apply to the version when creating the Github release tag',
         default: 'v',
+      })
+      .option('commit', {
+        type: 'boolean',
+        describe:
+          'Commit the changes to the local git repository after versioning',
+        default: false,
       })
       .check((argv) => {
         if (!argv.version) {

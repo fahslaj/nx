@@ -10,6 +10,9 @@ import {
 import * as chalk from 'chalk';
 import { exec } from 'child_process';
 import { getLatestGitTagForPattern } from 'nx/src/command-line/release/utils/git';
+import { gitAddChanges } from 'nx/src/command-line/release/utils/git-add-changes';
+import { gitCommitChanges } from 'nx/src/command-line/release/utils/git-commit-changes';
+
 import {
   resolveSemverSpecifierFromConventionalCommits,
   resolveSemverSpecifierFromPrompt,
@@ -62,6 +65,8 @@ export async function releaseVersionGenerator(
     // if specifier is undefined, then we haven't resolved it yet
     // if specifier is null, then it has been resolved and no changes are necessary
     let specifier = options.specifier ? options.specifier : undefined;
+
+    const affectedFiles = new Set<string>();
 
     for (const project of projects) {
       const projectName = project.name;
@@ -264,6 +269,7 @@ To fix this you will either need to add a package.json file at that location, or
         ...projectPackageJson,
         version: newVersion,
       });
+      affectedFiles.add(packageJsonPath);
 
       log(
         `✍️  New version ${newVersion} written to ${workspaceRelativePackageJsonPath}`
@@ -291,19 +297,53 @@ To fix this you will either need to add a package.json file at that location, or
       }
 
       for (const dependentProject of dependentProjects) {
-        updateJson(
-          tree,
-          joinPathFragments(
-            projectNameToPackageRootMap.get(dependentProject.source),
-            'package.json'
-          ),
-          (json) => {
-            json[dependentProject.dependencyCollection][packageName] =
-              newVersion;
-            return json;
-          }
+        const dependentProjectPackageJsonPath = joinPathFragments(
+          projectNameToPackageRootMap.get(dependentProject.source),
+          'package.json'
         );
+        updateJson(tree, dependentProjectPackageJsonPath, (json) => {
+          json[dependentProject.dependencyCollection][packageName] = newVersion;
+          return json;
+        });
+        affectedFiles.add(dependentProjectPackageJsonPath);
       }
+    }
+
+    await gitAddChanges(
+      {
+        affectedFiles: Array.from(affectedFiles),
+      },
+      {
+        dryRun: options.dryRun,
+        verbose: process.env.NX_VERBOSE_LOGGING === 'true',
+      }
+    );
+
+    if (options.gitCommit) {
+      await gitCommitChanges(
+        {
+          message: options.gitCommitMessage,
+          amend: options.gitCommitAmend,
+          gitArgs: options.gitCommitArgs,
+        },
+        {
+          dryRun: options.dryRun,
+          verbose: process.env.NX_VERBOSE_LOGGING === 'true',
+        }
+      );
+      /**
+       * Tagging will be difficult, as different release groups can have different patterns. We will need to tag once per release group, but only commit once total.
+       */
+      // await gitTag(
+      //   {
+      //     tag: '???',
+      //     gitArgs: options.gitTagArgs,
+      //   },
+      //   {
+      //     dryRun: options.dryRun,
+      //     verbose: process.env.NX_VERBOSE_LOGGING === 'true',
+      //   }
+      // );
     }
   } catch (e) {
     if (process.env.NX_VERBOSE_LOGGING === 'true') {

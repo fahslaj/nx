@@ -67,6 +67,14 @@ nx release version [specifier]
 
 #### Options
 
+##### commit
+
+Type: `boolean`
+
+Default: `false`
+
+Commit the changes to the local git repository after versioning
+
 ##### help
 
 Type: `boolean`
@@ -100,6 +108,14 @@ nx release changelog [version]
 ```
 
 #### Options
+
+##### commit
+
+Type: `boolean`
+
+Default: `false`
+
+Commit the changes to the local git repository after versioning
 
 ##### from
 
