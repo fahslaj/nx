@@ -67,7 +67,6 @@ export async function release(
     ...args,
     versionData: versionResult.projectsVersionData,
     version: versionResult.workspaceVersion,
-    workspaceChangelog: versionResult.workspaceVersion !== undefined,
   });
 
   let shouldPublish = !!args.yes && !args.skipPublish;
