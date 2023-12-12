@@ -71,7 +71,6 @@ export async function releaseVersionGenerator(
     }
 
     let currentVersion: string;
-    let currentVersionRef: string;
 
     // only used for options.currentVersionResolver === 'git-tag', but
     // must be declared here in order to reuse it for additional projects
@@ -196,7 +195,6 @@ To fix this you will either need to add a package.json file at that location, or
               );
             }
 
-            currentVersionRef = latestMatchingGitTag.tag;
             currentVersion = latestMatchingGitTag.extractedVersion;
             log(
               `📄 Resolved the current version as ${currentVersion} from git tag "${latestMatchingGitTag.tag}".`
@@ -332,7 +330,6 @@ To fix this you will either need to add a package.json file at that location, or
 
       versionData[projectName] = {
         currentVersion,
-        currentVersionRef,
         dependentProjects,
         newVersion: null, // will stay as null in the final result the case that no changes are detected
       };

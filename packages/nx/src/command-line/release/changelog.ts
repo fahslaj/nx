@@ -308,7 +308,6 @@ function resolveChangelogVersions(
         if (!args.versionData) {
           versionData[projectName] = {
             newVersion: args.version,
-            currentVersionRef: null,
             currentVersion: '', // not relevant within changelog/commit generation
             dependentProjects: [], // not relevant within changelog/commit generation
           };

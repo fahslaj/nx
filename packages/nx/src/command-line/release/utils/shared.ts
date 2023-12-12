@@ -11,8 +11,6 @@ export type VersionData = Record<
   {
     newVersion: string;
     currentVersion: string;
-    // the git ref (tag or sha) for the current version, or null if the current version was not resolved using git
-    currentVersionRef: string | null;
     dependentProjects: any[]; // TODO: investigate generic type for this once more ecosystems are explored
   }
 >;
