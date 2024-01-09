@@ -220,6 +220,10 @@ To fix this you will either need to add a package.json file at that location, or
         log(`📄 Using the provided version specifier "${options.specifier}".`);
       }
 
+      if (options.firstRelease) {
+        specifier = null;
+      }
+
       /**
        * If we are versioning independently then we always need to determine the specifier for each project individually, except
        * for the case where the user has provided an explicit specifier on the command.
@@ -334,9 +338,13 @@ To fix this you will either need to add a package.json file at that location, or
       };
 
       if (!specifier) {
-        log(
-          `🚫 Skipping versioning "${projectPackageJson.name}" as no changes were detected.`
-        );
+        if (options.firstRelease) {
+          log(`🚫 Skipping version bump since this is the first release.`);
+        } else {
+          log(
+            `🚫 Skipping versioning "${projectPackageJson.name}" as no changes were detected.`
+          );
+        }
         continue;
       }
 

@@ -138,9 +138,10 @@ export async function releaseChangelog(
     );
   }
 
-  const fromRef =
-    args.from ||
-    (await getLatestGitTagForPattern(nxReleaseConfig.releaseTagPattern))?.tag;
+  const fromRef = args.firstRelease
+    ? 'HEAD'
+    : args.from ||
+      (await getLatestGitTagForPattern(nxReleaseConfig.releaseTagPattern))?.tag;
   if (!fromRef) {
     throw new Error(
       `Unable to determine the previous git tag, please provide an explicit git reference using --from`
@@ -341,7 +342,7 @@ async function applyChangesAndExit(
    * commits, for example.
    */
   const changelogFilesEnabled = checkChangelogFilesEnabled(nxReleaseConfig);
-  if (changelogFilesEnabled && !changes.length) {
+  if (changelogFilesEnabled && !changes.length && !args.firstRelease) {
     output.warn({
       title: `No changes detected for changelogs`,
       bodyLines: [

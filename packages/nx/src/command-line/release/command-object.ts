@@ -15,6 +15,7 @@ export interface NxReleaseArgs {
   projects?: string[];
   dryRun?: boolean;
   verbose?: boolean;
+  firstRelease?: boolean;
 }
 
 interface GitCommitAndTagOptions {
@@ -98,6 +99,11 @@ export const yargsReleaseCommand: CommandModule<
         type: 'boolean',
         describe:
           'Prints additional information about the commands (e.g., stack traces)',
+      })
+      .option('first-release', {
+        type: 'boolean',
+        description:
+          'Treat this as the first release. This will skip bumping the version of packages and assume that what is on disk is what is meant to be released.',
       })
       .check((argv) => {
         if (argv.groups && argv.projects) {
