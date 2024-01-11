@@ -25,6 +25,12 @@ Default: `false`
 
 Preview the changes without updating files/creating releases
 
+### first-release
+
+Type: `boolean`
+
+Treat this as the first release. This will skip bumping the version of packages and assume that what is on disk is what is meant to be released.
+
 ### groups
 
 Type: `string`
